@@ -136,66 +136,75 @@ server.listen(3000, () => {
 
 
 
+// Försök på MVG:
 
-// app.post('/users', async function(req, res) {
-//     let connection = await getConnection()
-//     let sql = `INSERT INTO users (username, name)
-//     VALUES (?, ?)`
-//     let [results] = await connection.execute(sql, [
-//         req.body.username,
-//          name,
-//     ])
-//     res.json(results)
-// });
+// JWT token:
 
+const jwT = require('jsonwebtoken');
 
+// Hemlig nyckel för att signera och verifiera JWT
+const JWt_SECRET = 'your_secret_key'; 
 
-//  // Verifiera hash med bcrypt
-//   const isPasswordValid = await bcrypt.compare(req.body.password, hashedPasswordFromDB);
+app.post('/login', async function(req, res) {
+    let connection = await getConnection(); 
 
-//   if (isPasswordValid) {
-//     // Skicka info om användaren, utan känslig info som t.ex. hash
-//   } else {
-//     // Skicka felmeddelande
-//     res.status(400).json({ error: 'Invalid credentials' });
-//   }
+    let sql = 'SELECT * FROM users WHERE username = ?';
+    let [results] = await connection.execute(sql, [req.body.username]);
+    let hashedPasswordFromDB = results[0].password;
 
- // else {res.json({"error":"true"})}
+    let isPasswordValid = await bcrypt.compare(req.body.password, hashedPasswordFromDB);
+    
+    if (isPasswordValid) {
+        // Skapa en JWT med användarinformation
+        const token = jwT.sign({ username: results[0].username }, JWt_SECRET, { expiresIn: '1h' });
 
-    // Kontrollera att det fanns en user med det username i results
-    // res.json(results)
-
-    //  Ditt API ska acceptera POST till minst en route för att skapa nya objekt. De objekten ska skapas i databasen och de ska returneras med det id de fått i databasen och lämplig HTTP-status ska returneras
-    //  app.post('/users', async function(req, res) {
-    //     let connection = await getConnection()
-    //     let sql = `INSERT INTO users (username, name)
-    //                     VALUES (?, ?)`
-    //                     let [results] = await connection.execute(sql, [
-    //                          username,
-    //                          name,
-    //                     ])
-    //                     res.json(results)
-    //                 });
-
-                 
-
-
-              
+        res.json({ token: token });
+    } else {
+        res.status(401).json({ message: 'Invalid username or password' });
+    }
+});
 
 
 
+// Fel returneras med lämplig HTTP-status:
 
-//    app.post('/users', async function(req, res) {
-//     //req.body innehåller det postade datat
-//      console.log(req.body)
-//     let connection = await getConnection();
-//     let sql = `INSERT INTO users (username, name)
-//     VALUES (?, ?)`
-//     let [results] = await connection.execute(sql, [
-//          req.body.username,
-//                     req.body.name,
-//                   ])
-//                   //results innehåller metadata om vad som skapades i databasen
-//                   console.log(results)
-//                   res.json(results)
-//                 });
+const jwt = require('jsonwebtoken');
+
+const JWT_SECRET = 'your_secret_key'; 
+
+function verifyToken(req, res, next) {
+  const token = req.headers['authorization'];
+
+  // Kontrollera om token saknas
+  if (!token) {
+    return res.status(401).json({ message: 'Token is missing' });
+  }
+
+  // Verifiera token
+  jwt.verify(token, JWT_SECRET, (err, decoded) => {
+    if (err) {
+      return res.status(403).json({ message: 'Invalid or expired token' });
+    }
+    req.user = decoded;
+    next(); 
+  });
+}
+
+app.get('/users', verifyToken, async function(req, res) {
+});
+
+app.get('/users/:id', verifyToken, async function(req, res) {
+});
+
+app.put("/users/:id", verifyToken, async function (req, res) {
+});
+
+app.post('/login', async function(req, res) {
+
+  if (isPasswordValid) {
+    let token = jwt.sign({ username: results[0].username }, JWT_SECRET, { expiresIn: '1h' });
+    res.json({ token: token });
+  } else {
+    res.status(401).json({ message: 'Invalid username or password' });
+  }
+});
